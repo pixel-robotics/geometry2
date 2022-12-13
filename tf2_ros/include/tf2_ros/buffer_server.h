@@ -76,10 +76,9 @@ public:
    * \param ns The namespace in which to look for action clients.
    * \param check_period How often to check for changes to known transforms (via a timer event).
    */
-  template<typename NodePtr>
   BufferServer(
     const tf2_ros::Buffer & buffer,
-    NodePtr node,
+    rclcpp::Node::SharedPtr node,
     const std::string & ns,
     tf2::Duration check_period = tf2::durationFromSec(0.01))
   : buffer_(buffer),
@@ -95,14 +94,13 @@ public:
       std::bind(&BufferServer::acceptedCB, this, std::placeholders::_1),
       action_server_ops
       );
+    cb_group_ = node->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
 
-    service_server_ =
-    rclcpp::create_service<LookupTransformService>(node->get_node_base_interface(), node->get_node_services_interface(), ns, std::bind(
-        &BufferServer::serviceCB, this, std::placeholders::_1,
-        std::placeholders::_2),
-        rmw_qos_profile_services_default,
-        nullptr
-        );
+    service_server_ = node->create_service<LookupTransformService>(ns, 
+     std::bind(&BufferServer::serviceCB, this, std::placeholders::_1, std::placeholders::_2),
+    rmw_qos_profile_services_default,
+    cb_group_);
+
     
     check_timer_ = rclcpp::create_timer(
       node, node->get_clock(), check_period, std::bind(&BufferServer::checkTransforms, this));
@@ -144,8 +142,9 @@ private:
 
   const tf2_ros::Buffer & buffer_;
   rclcpp::Logger logger_;
-  rclcpp_action::Server<LookupTransformAction>::SharedPtr server_;
+  // rclcpp_action::Server<LookupTransformAction>::SharedPtr server_;
   rclcpp::Service<LookupTransformService>::SharedPtr service_server_;
+  rclcpp::CallbackGroup::SharedPtr cb_group_;
   std::list<GoalInfo> active_goals_;
   std::mutex mutex_;
   rclcpp::TimerBase::SharedPtr check_timer_;
