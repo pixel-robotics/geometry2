@@ -49,7 +49,7 @@ import tf2_py as tf2
 import tf2_ros
 import threading
 import warnings
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.callback_groups import ReentrantCallbackGroup
 
 #from tf2_msgs.action import LookupTransform
 from tf2_msgs.srv import LookupTransform
@@ -81,7 +81,7 @@ class BufferClient(tf2_ros.BufferInterface):
         tf2_ros.BufferInterface.__init__(self)
         self.node = node
         # self.action_client = ActionClient(node, LookupTransform, action_name=ns)
-        self.service_client = node.create_client(LookupTransform, ns, callback_group=MutuallyExclusiveCallbackGroup())
+        self.service_client = node.create_client(LookupTransform, ns, callback_group=ReentrantCallbackGroup())
         self.check_frequency = check_frequency
         self.timeout_padding = timeout_padding
 
