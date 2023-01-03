@@ -142,7 +142,7 @@ private:
 
   const tf2_ros::Buffer & buffer_;
   rclcpp::Logger logger_;
-  // rclcpp_action::Server<LookupTransformAction>::SharedPtr server_;
+  rclcpp_action::Server<LookupTransformAction>::SharedPtr server_;
   rclcpp::Service<LookupTransformService>::SharedPtr service_server_;
   rclcpp::CallbackGroup::SharedPtr cb_group_;
   std::list<GoalInfo> active_goals_;
