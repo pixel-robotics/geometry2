@@ -52,7 +52,7 @@ geometry_msgs::msg::TransformStamped BufferClient::lookupTransform(
   const tf2::Duration timeout) const
 {
   // populate the goal message
-  LookupTransformAction::Goal goal;
+  LookupTransformService::Request goal;
   goal.target_frame = target_frame;
   goal.source_frame = source_frame;
   goal.source_time = tf2_ros::toMsg(time);
@@ -71,7 +71,7 @@ geometry_msgs::msg::TransformStamped BufferClient::lookupTransform(
   const tf2::Duration timeout) const
 {
   // populate the goal message
-  LookupTransformAction::Goal goal;
+  LookupTransformService::Request goal;
   goal.target_frame = target_frame;
   goal.source_frame = source_frame;
   goal.source_time = tf2_ros::toMsg(source_time);
@@ -84,67 +84,40 @@ geometry_msgs::msg::TransformStamped BufferClient::lookupTransform(
 }
 
 geometry_msgs::msg::TransformStamped BufferClient::processGoal(
-  const LookupTransformAction::Goal & goal) const
+  const LookupTransformService::Request & goal) const
 {
-  if (!client_->wait_for_action_server(tf2_ros::fromMsg(goal.timeout))) {
-    throw tf2::ConnectivityException("Failed find available action server");
+  if (!client_->wait_for_service(std::chrono::seconds(1))) {
+    throw tf2::ConnectivityException("Failed find available service server");
   }
+  auto goal_shared_ptr = std::make_shared<tf2_msgs::srv::LookupTransform::Request>(goal);
 
-  auto goal_handle_future = client_->async_send_goal(goal);
+  auto future = client_->async_send_request(goal_shared_ptr);
 
   const std::chrono::milliseconds period(static_cast<int>((1.0 / check_frequency_) * 1000));
   bool ready = false;
   bool timed_out = false;
   tf2::TimePoint start_time = tf2::get_now();
   while (rclcpp::ok() && !ready && !timed_out) {
-    ready = (std::future_status::ready == goal_handle_future.wait_for(period));
-    timed_out = tf2::get_now() > start_time + tf2_ros::fromMsg(goal.timeout) + timeout_padding_;
+    ready = (std::future_status::ready == future.wait_for(period));
+    timed_out = tf2::get_now() > start_time + timeout_padding_;
   }
 
   if (timed_out) {
-    throw tf2::TimeoutException(
-            "Did not receive the goal response for the goal sent to "
-            "the action server. Something is likely wrong with the server.");
+    throw tf2::TimeoutException("Service call timed out");
   }
 
-  auto goal_handle = goal_handle_future.get();
-  if (!goal_handle) {
-    throw GoalRejectedException("Goal rejected by action server");
+  if (!ready) {
+    throw GoalRejectedException("Goal rejected by server");
   }
 
-  auto result_future = client_->async_get_result(goal_handle);
-
-  ready = false;
-  while (rclcpp::ok() && !ready && !timed_out) {
-    ready = (std::future_status::ready == result_future.wait_for(period));
-    timed_out = tf2::get_now() > start_time + tf2_ros::fromMsg(goal.timeout) + timeout_padding_;
-  }
-
-  if (timed_out) {
-    throw tf2::TimeoutException(
-            "Did not receive the result for the goal sent to "
-            "the action server. Something is likely wrong with the server.");
-  }
-
-  auto wrapped_result = result_future.get();
-
-  switch (wrapped_result.code) {
-    case rclcpp_action::ResultCode::SUCCEEDED:
-      break;
-    case rclcpp_action::ResultCode::ABORTED:
-      throw GoalAbortedException("LookupTransform action was aborted");
-    case rclcpp_action::ResultCode::CANCELED:
-      throw GoalCanceledException("LookupTransform action was canceled");
-    default:
-      throw UnexpectedResultCodeException("Unexpected result code returned from server");
-  }
+  auto response = future.get();
 
   // process the result for errors and return it
-  return processResult(wrapped_result.result);
+  return processResult(response);
 }
 
 geometry_msgs::msg::TransformStamped BufferClient::processResult(
-  const LookupTransformAction::Result::SharedPtr & result) const
+  const LookupTransformService::Response::SharedPtr & result) const
 {
   // if there's no error, then we'll just return the transform
   if (result->error.error != result->error.NO_ERROR) {

@@ -44,10 +44,11 @@
 #include "tf2_ros/buffer_interface.h"
 #include "tf2_ros/visibility_control.h"
 #include "tf2/time.h"
+#include "rclcpp/rclcpp.hpp"
 
 #include "geometry_msgs/msg/transform_stamped.hpp"
-#include "rclcpp_action/rclcpp_action.hpp"
-#include "tf2_msgs/action/lookup_transform.hpp"
+#include "tf2_msgs/srv/lookup_transform.hpp"
+
 
 namespace tf2_ros
 {
@@ -113,7 +114,7 @@ public:
 class BufferClient : public BufferInterface
 {
 public:
-  using LookupTransformAction = tf2_msgs::action::LookupTransform;
+   using LookupTransformService = tf2_msgs::srv::LookupTransform;
 
   /** \brief BufferClient constructor
    * \param node The node to add the buffer client to
@@ -121,16 +122,23 @@ public:
    * \param check_frequency The frequency in Hz to check whether the BufferServer has completed a request
    * \param timeout_padding The amount of time to allow passed the desired timeout on the client side for communication lag
    */
-  template<typename NodePtr>
+   // TODO templating is possible for actions, but not for services
+   // see https://github.com/ros2/rclcpp/pull/892
+  //template<typename NodePtr>
   BufferClient(
-    NodePtr node,
+    rclcpp::Node::SharedPtr node,
     const std::string ns,
     const double & check_frequency = 10.0,
     const tf2::Duration & timeout_padding = tf2::durationFromSec(2.0))
   : check_frequency_(check_frequency),
     timeout_padding_(timeout_padding)
   {
-    client_ = rclcpp_action::create_client<LookupTransformAction>(node, ns);
+    //client_ = rclcpp_action::create_client<LookupTransformAction>(node, ns);
+
+    // use separate callback group to not block node
+    auto my_callback_group = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
+    client_ = node->create_client<LookupTransformService>(ns,  rclcpp::ServicesQoS().get_rmw_qos_profile(), my_callback_group);
   }
 
   virtual ~BufferClient() = default;
@@ -244,17 +252,17 @@ public:
   TF2_ROS_PUBLIC
   bool waitForServer(const tf2::Duration & timeout = tf2::durationFromSec(0))
   {
-    return client_->wait_for_action_server(timeout);
+    return client_->wait_for_service(timeout);
   }
 
 private:
   geometry_msgs::msg::TransformStamped
-  processGoal(const LookupTransformAction::Goal & goal) const;
+  processGoal(const LookupTransformService::Request & goal) const;
 
   geometry_msgs::msg::TransformStamped
-  processResult(const LookupTransformAction::Result::SharedPtr & result) const;
+  processResult(const LookupTransformService::Response::SharedPtr & result) const;
 
-  rclcpp_action::Client<LookupTransformAction>::SharedPtr client_;
+  rclcpp::Client<LookupTransformService>::SharedPtr client_;
   double check_frequency_;
   tf2::Duration timeout_padding_;
 };
