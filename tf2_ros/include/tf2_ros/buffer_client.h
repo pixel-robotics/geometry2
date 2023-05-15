@@ -120,17 +120,34 @@ public:
    * \param ns The namespace in which to look for a BufferServer
    * \param check_frequency The frequency in Hz to check whether the BufferServer has completed a request
    * \param timeout_padding The amount of time to allow passed the desired timeout on the client side for communication lag
+   * \param spin_thread Whether to spin a separate executor, so that the TFClient can be used in a callback
    */
   template<typename NodePtr>
   BufferClient(
     NodePtr node,
     const std::string ns,
     const double & check_frequency = 10.0,
-    const tf2::Duration & timeout_padding = tf2::durationFromSec(2.0))
+    const tf2::Duration & timeout_padding = tf2::durationFromSec(2.0),
+    const bool spin_thread = false)
   : check_frequency_(check_frequency),
     timeout_padding_(timeout_padding)
   {
+
+     if (spin_thread) {
+      // Create new callback group for communication
+      callback_group_ = node->get_node_base_interface()->create_callback_group(
+        rclcpp::CallbackGroupType::MutuallyExclusive, false);
+
+      // Create executor with dedicated thread to spin.
+      executor_ = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
+      executor_->add_callback_group(callback_group_, node->get_node_base_interface());
+      dedicated_listener_thread_ = std::make_unique<std::thread>([&]() {executor_->spin();});
+
+      client_ = rclcpp_action::create_client<LookupTransformAction>(node, ns,callback_group_);
+     }
+     else {
     client_ = rclcpp_action::create_client<LookupTransformAction>(node, ns);
+     }
   }
 
   virtual ~BufferClient() = default;
@@ -257,6 +274,10 @@ private:
   rclcpp_action::Client<LookupTransformAction>::SharedPtr client_;
   double check_frequency_;
   tf2::Duration timeout_padding_;
+
+  std::unique_ptr<std::thread> dedicated_listener_thread_;
+  rclcpp::CallbackGroup::SharedPtr callback_group_{nullptr};
+  rclcpp::executors::SingleThreadedExecutor::SharedPtr executor_;
 };
 }  // namespace tf2_ros
 
