@@ -68,7 +68,7 @@ class BufferClient(tf2_ros.BufferInterface):
         node: Node,
         ns: str = "tf2_buffer_server",
         check_frequency: float = 10.0,
-        timeout_padding: Duration = Duration(seconds=0.0)
+        timeout_padding: Duration = Duration(seconds=15.0)
     ) -> None:
         """
         Constructor.
@@ -86,6 +86,8 @@ class BufferClient(tf2_ros.BufferInterface):
         self.timeout_padding = timeout_padding
         self.function_call_times = []
         self.track_duration = Duration(seconds=10.0)
+        if not self.service_client.wait_for_service(timeout_sec=10.0):
+            raise tf2.TimeoutException("The BufferServer is not ready. cannot initialize")
 
     # lookup, simple api
     def lookup_transform(
@@ -93,7 +95,7 @@ class BufferClient(tf2_ros.BufferInterface):
         target_frame: str,
         source_frame: str,
         time: Time,
-        timeout: Duration = Duration(seconds=1.0)
+        timeout: Duration = Duration()
     ) -> TransformStamped:
         """
         Get the transform from the source frame to the target frame.
@@ -132,7 +134,7 @@ class BufferClient(tf2_ros.BufferInterface):
         source_frame: str,
         source_time: Time,
         fixed_frame: str,
-        timeout: Duration = Duration(seconds=5.0)
+        timeout: Duration = Duration()
     ) -> TransformStamped:
         """
         Get the transform from the source frame to the target frame using the advanced API.
@@ -163,7 +165,7 @@ class BufferClient(tf2_ros.BufferInterface):
         target_frame: str,
         source_frame: str,
         time: Time,
-        timeout: Duration = Duration(seconds=5.0)
+        timeout: Duration = Duration()
     ) -> bool:
         """
         Check if a transform from the source frame to the target frame is possible.
@@ -227,7 +229,7 @@ class BufferClient(tf2_ros.BufferInterface):
             pass
             # self.node.get_logger().error(f"Warning: The function frequency is too high! Average frequency: {frequency_hz} Hz")
 
-        if not self.service_client.wait_for_service(timeout_sec=1.0):
+        if not self.service_client.wait_for_service(timeout_sec=5.0):
             raise tf2.TimeoutException("The BufferServer is not ready.")
         event = threading.Event()
 

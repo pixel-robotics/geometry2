@@ -146,17 +146,20 @@ rclcpp_action::CancelResponse BufferServer::cancelCB(GoalHandle gh)
 void BufferServer::serviceCB(const std::shared_ptr<LookupTransformService::Request> request,
           std::shared_ptr<LookupTransformService::Response> response)
 {
-    auto time_elapsed = tf2::get_now() - tf2_ros::fromMsg(request->header.stamp);
     // check that the request is not too old
 
-    // Convert the duration to double
+    auto time_elapsed = tf2::get_now() - tf2_ros::fromMsg(request->header.stamp);
     double durationInSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(time_elapsed).count();
 
-    if (durationInSeconds > 1.0) {
-    RCLCPP_ERROR(
-    logger_,
-      "Time elapsed too big: %f", durationInSeconds);
-    }
+    // if (durationInSeconds > 3.0) {
+    // RCLCPP_ERROR(
+    // logger_,
+    //   "Time elapsed too big: %f", durationInSeconds);
+    // response->error.error = 7;
+    // response->error.error_string = "Time elapsed is too big: " + std::to_string(durationInSeconds) + " seconds";
+    // return;
+    // }
+    
     empty_publisher_->publish(std_msgs::msg::Empty());
     try {
       response->transform = lookupTransform(request);
