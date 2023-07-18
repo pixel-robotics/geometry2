@@ -49,6 +49,7 @@
 #include "tf2_ros/visibility_control.h"
 
 #include "geometry_msgs/msg/transform_stamped.hpp"
+#include "std_msgs/msg/empty.hpp"
 #include "rclcpp/create_timer.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp/qos.hpp"
@@ -104,6 +105,10 @@ public:
     
     check_timer_ = rclcpp::create_timer(
       node, node->get_clock(), check_period, std::bind(&BufferServer::checkTransforms, this));
+
+    // create Empty publisher 
+    empty_publisher_ = node->create_publisher<std_msgs::msg::Empty>("empty", 1);
+
     RCLCPP_DEBUG(logger_, "Buffer server started");
   }
 
@@ -148,6 +153,9 @@ private:
   std::list<GoalInfo> active_goals_;
   std::mutex mutex_;
   rclcpp::TimerBase::SharedPtr check_timer_;
+  std::atomic<int> callback_count_{0};
+  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr empty_publisher_;
+  
 };
 
 }  // namespace tf2_ros

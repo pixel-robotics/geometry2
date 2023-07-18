@@ -68,7 +68,7 @@ class BufferClient(tf2_ros.BufferInterface):
         node: Node,
         ns: str = "tf2_buffer_server",
         check_frequency: float = 10.0,
-        timeout_padding: Duration = Duration(seconds=2.0)
+        timeout_padding: Duration = Duration(seconds=0.0)
     ) -> None:
         """
         Constructor.
@@ -84,6 +84,8 @@ class BufferClient(tf2_ros.BufferInterface):
         self.service_client = node.create_client(LookupTransform, ns, callback_group=ReentrantCallbackGroup())
         self.check_frequency = check_frequency
         self.timeout_padding = timeout_padding
+        self.function_call_times = []
+        self.track_duration = Duration(seconds=10.0)
 
     # lookup, simple api
     def lookup_transform(
@@ -91,7 +93,7 @@ class BufferClient(tf2_ros.BufferInterface):
         target_frame: str,
         source_frame: str,
         time: Time,
-        timeout: Duration = Duration()
+        timeout: Duration = Duration(seconds=1.0)
     ) -> TransformStamped:
         """
         Get the transform from the source frame to the target frame.
@@ -130,7 +132,7 @@ class BufferClient(tf2_ros.BufferInterface):
         source_frame: str,
         source_time: Time,
         fixed_frame: str,
-        timeout: Duration = Duration()
+        timeout: Duration = Duration(seconds=5.0)
     ) -> TransformStamped:
         """
         Get the transform from the source frame to the target frame using the advanced API.
@@ -161,7 +163,7 @@ class BufferClient(tf2_ros.BufferInterface):
         target_frame: str,
         source_frame: str,
         time: Time,
-        timeout: Duration = Duration()
+        timeout: Duration = Duration(seconds=5.0)
     ) -> bool:
         """
         Check if a transform from the source frame to the target frame is possible.
@@ -187,7 +189,7 @@ class BufferClient(tf2_ros.BufferInterface):
         source_frame: str,
         source_time: Time,
         fixed_frame: str,
-        timeout: Duration = Duration()
+        timeout: Duration = Duration(seconds=5.0)
     ) -> bool:
         """
         Check if a transform from the source frame to the target frame is possible (advanced API).
@@ -210,6 +212,21 @@ class BufferClient(tf2_ros.BufferInterface):
             return False
 
     def __process_goal(self, goal: LookupTransformGoal) -> TransformStamped:
+        current_time = self.node.get_clock().now()
+        # Add current call time to the list
+        self.function_call_times.append(current_time)
+
+        # Remove old call times before the specified track duration
+        self.function_call_times = [call_time for call_time in self.function_call_times if call_time >= current_time - self.track_duration]
+
+        # Calculate the frequency based on the number of calls within the track duration
+        frequency_hz = len(self.function_call_times) / self.track_duration.seconds
+
+        # Print warning if frequency is too high (e.g., exceeds 100 Hz)
+        if frequency_hz > 2:
+            pass
+            # self.node.get_logger().error(f"Warning: The function frequency is too high! Average frequency: {frequency_hz} Hz")
+
         if not self.service_client.wait_for_service(timeout_sec=1.0):
             raise tf2.TimeoutException("The BufferServer is not ready.")
         event = threading.Event()
@@ -217,7 +234,7 @@ class BufferClient(tf2_ros.BufferInterface):
         def unblock(future):
             nonlocal event
             event.set()
-
+        goal.header.stamp = self.node.get_clock().now().to_msg()
         future = self.service_client.call_async(goal)
         future.add_done_callback(unblock)
 

@@ -146,6 +146,7 @@ rclcpp_action::CancelResponse BufferServer::cancelCB(GoalHandle gh)
 void BufferServer::serviceCB(const std::shared_ptr<LookupTransformService::Request> request,
           std::shared_ptr<LookupTransformService::Response> response)
 {
+    empty_publisher_->publish(std_msgs::msg::Empty());
     try {
       response->transform = lookupTransform(request);
     } catch (const tf2::ConnectivityException & ex) {
