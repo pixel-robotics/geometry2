@@ -31,7 +31,7 @@
 
 from typing import Iterable, Optional, Tuple
 
-from geometry_msgs.msg import (PointStamped, Point, Point32, PolygonStamped, Pose,
+from geometry_msgs.msg import (Point, Point32, PointStamped, PolygonStamped, Pose,
                                PoseStamped, PoseWithCovarianceStamped,
                                TransformStamped, Vector3Stamped)
 import numpy as np
