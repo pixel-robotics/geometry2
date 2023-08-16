@@ -410,7 +410,6 @@ def do_transform_pose_with_covariance_stamped(
 tf2_ros.TransformRegistration().add(PoseWithCovarianceStamped,
                                     do_transform_pose_with_covariance_stamped)
 
-
 # PolygonStamped
 def do_transform_polygon_stamped(
         polygon: PolygonStamped,

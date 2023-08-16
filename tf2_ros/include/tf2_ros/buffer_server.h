@@ -51,8 +51,10 @@
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "rclcpp/create_timer.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp/qos.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "tf2_msgs/action/lookup_transform.hpp"
+#include "tf2_msgs/srv/lookup_transform.hpp"
 
 namespace tf2_ros
 {
@@ -64,6 +66,7 @@ namespace tf2_ros
 class BufferServer
 {
   using LookupTransformAction = tf2_msgs::action::LookupTransform;
+  using LookupTransformService = tf2_msgs::srv::LookupTransform;
   using GoalHandle = std::shared_ptr<rclcpp_action::ServerGoalHandle<LookupTransformAction>>;
 
 public:
@@ -73,22 +76,32 @@ public:
    * \param ns The namespace in which to look for action clients.
    * \param check_period How often to check for changes to known transforms (via a timer event).
    */
-  template<typename NodePtr>
   BufferServer(
-    const tf2::BufferCoreInterface & buffer,
-    NodePtr node,
+    const tf2_ros::Buffer & buffer,
+    rclcpp::Node::SharedPtr node,
     const std::string & ns,
     tf2::Duration check_period = tf2::durationFromSec(0.01))
   : buffer_(buffer),
     logger_(node->get_logger())
   {
+    rcl_action_server_options_t action_server_ops = rcl_action_server_get_default_options();
+    action_server_ops.result_timeout.nanoseconds = (rcl_duration_value_t)RCL_S_TO_NS(5);
     server_ = rclcpp_action::create_server<LookupTransformAction>(
       node,
       ns,
       std::bind(&BufferServer::goalCB, this, std::placeholders::_1, std::placeholders::_2),
       std::bind(&BufferServer::cancelCB, this, std::placeholders::_1),
-      std::bind(&BufferServer::acceptedCB, this, std::placeholders::_1));
+      std::bind(&BufferServer::acceptedCB, this, std::placeholders::_1),
+      action_server_ops
+      );
+    cb_group_ = node->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
 
+    service_server_ = node->create_service<LookupTransformService>(ns, 
+     std::bind(&BufferServer::serviceCB, this, std::placeholders::_1, std::placeholders::_2),
+    rmw_qos_profile_services_default,
+    cb_group_);
+
+    
     check_timer_ = rclcpp::create_timer(
       node, node->get_clock(), check_period, std::bind(&BufferServer::checkTransforms, this));
     RCLCPP_DEBUG(logger_, "Buffer server started");
@@ -100,6 +113,10 @@ private:
     GoalHandle handle;
     tf2::TimePoint end_time;
   };
+  
+  TF2_ROS_PUBLIC
+  void serviceCB(const std::shared_ptr<LookupTransformService::Request> request,
+          std::shared_ptr<LookupTransformService::Response> response);
 
   TF2_ROS_PUBLIC
   rclcpp_action::GoalResponse goalCB(
@@ -120,9 +137,14 @@ private:
   TF2_ROS_PUBLIC
   geometry_msgs::msg::TransformStamped lookupTransform(GoalHandle gh);
 
-  const tf2::BufferCoreInterface & buffer_;
+  TF2_ROS_PUBLIC
+  geometry_msgs::msg::TransformStamped lookupTransform(const std::shared_ptr<LookupTransformService::Request> request);
+
+  const tf2_ros::Buffer & buffer_;
   rclcpp::Logger logger_;
   rclcpp_action::Server<LookupTransformAction>::SharedPtr server_;
+  rclcpp::Service<LookupTransformService>::SharedPtr service_server_;
+  rclcpp::CallbackGroup::SharedPtr cb_group_;
   std::list<GoalInfo> active_goals_;
   std::mutex mutex_;
   rclcpp::TimerBase::SharedPtr check_timer_;

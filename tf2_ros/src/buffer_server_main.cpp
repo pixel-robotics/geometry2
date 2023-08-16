@@ -53,7 +53,7 @@ int main(int argc, char ** argv)
   tf2_ros::TransformListener listener(buffer);
   tf2_ros::BufferServer buffer_server(buffer, node, "tf2_buffer_server");
 
-  rclcpp::executors::SingleThreadedExecutor executor;
+  rclcpp::executors::MultiThreadedExecutor executor;
   executor.add_node(node);
   executor.spin();
 
