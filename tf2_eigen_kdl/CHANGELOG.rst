@@ -2,6 +2,12 @@
 Changelog for package tf2_eigen_kdl
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.25.3 (2023-07-17)
+-------------------
+
+0.25.2 (2023-01-10)
+-------------------
+
 0.25.1 (2022-08-05)
 -------------------
 * Use orocos_kdl_vendor and orocos-kdl target (`#548 <https://github.com/ros2/geometry2/issues/548>`_)
