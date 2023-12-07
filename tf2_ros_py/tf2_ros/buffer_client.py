@@ -50,7 +50,7 @@ import tf2_py as tf2
 import tf2_ros
 import threading
 import warnings
-from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
+from rclpy.executors import SingleThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup
 
 #from tf2_msgs.action import LookupTransform
@@ -75,7 +75,7 @@ class BufferClient(tf2_ros.BufferInterface):
         """
         Constructor.
 
-        :param node: The ROS2 node.
+        :param node: The ROS2 node. Can be None -> then a standalone node and executor will be created
         :param ns: The namespace in which to look for a BufferServer.
         :param check_frequency: How frequently to check for updates to known transforms.
         :param timeout_padding: A constant timeout to add to blocking calls.
