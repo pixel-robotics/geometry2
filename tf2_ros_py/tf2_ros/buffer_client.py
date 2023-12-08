@@ -36,6 +36,7 @@
 #***********************************************************
 from typing import TypeVar
 
+import rclpy
 from geometry_msgs.msg import TransformStamped
 
 from rclpy.node import Node
@@ -43,12 +44,13 @@ from rclpy.action.client import ActionClient
 from rclpy.duration import Duration
 from rclpy.time import Time
 from rclpy.clock import Clock
-from time import sleep
+from time import sleep, time
 import builtin_interfaces.msg
 import tf2_py as tf2
 import tf2_ros
 import threading
 import warnings
+from rclpy.executors import SingleThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup
 
 #from tf2_msgs.action import LookupTransform
@@ -65,7 +67,7 @@ class BufferClient(tf2_ros.BufferInterface):
     """
     def __init__(
         self,
-        node: Node,
+        node: Node= None,
         ns: str = "tf2_buffer_server",
         check_frequency: float = 10.0,
         timeout_padding: Duration = Duration(seconds=2.0)
@@ -73,12 +75,21 @@ class BufferClient(tf2_ros.BufferInterface):
         """
         Constructor.
 
-        :param node: The ROS2 node.
+        :param node: The ROS2 node. Can be None -> then a standalone node and executor will be created
         :param ns: The namespace in which to look for a BufferServer.
         :param check_frequency: How frequently to check for updates to known transforms.
         :param timeout_padding: A constant timeout to add to blocking calls.
         """
         tf2_ros.BufferInterface.__init__(self)
+
+        if not node:
+            node = rclpy.node.Node(node_name=f"buffer_client_{str(time()).replace('.', '_')}")
+
+            exec = SingleThreadedExecutor()
+            exec.add_node(node)
+            executor_thread = threading.Thread(target=exec.spin, daemon=True)
+            executor_thread.start()
+
         self.node = node
         # self.action_client = ActionClient(node, LookupTransform, action_name=ns)
         self.service_client = node.create_client(LookupTransform, ns, callback_group=ReentrantCallbackGroup())
@@ -248,7 +259,7 @@ class BufferClient(tf2_ros.BufferInterface):
             raise tf2.TimeoutException("The LookupTransform goal sent to the BufferServer did not come back in the specified time. Something is likely wrong with the server.")
 
         response = future.result()
-        
+
         return self.__process_result(response)
 
     def __process_result(self, result: LookupTransform.Response) -> TransformStamped:
