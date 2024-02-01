@@ -44,9 +44,14 @@
 #include <list>
 #include <memory>
 #include <string>
+#include "rclcpp/rclcpp.hpp"
 
 namespace tf2_ros
 {
+
+BufferServer::BufferServer(const rclcpp::NodeOptions & options)
+: Node("buffer_server", options)
+
 void BufferServer::checkTransforms()
 {
   std::unique_lock<std::mutex> lock(mutex_);
@@ -274,3 +279,6 @@ geometry_msgs::msg::TransformStamped BufferServer::lookupTransform(const std::sh
 }
 
 }  // namespace tf2_ros
+
+#include "rclcpp_components/register_node_macro.hpp"
+RCLCPP_COMPONENTS_REGISTER_NODE(tf2_ros::BufferServerNode)

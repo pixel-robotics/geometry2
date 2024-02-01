@@ -63,7 +63,7 @@ namespace tf2_ros
  * Use this class with a tf2_ros::TransformListener in the same process.
  * You can use this class with a tf2_ros::BufferClient in a different process.
  */
-class BufferServer
+class BufferServer : public rclcpp::Node
 {
   using LookupTransformAction = tf2_msgs::action::LookupTransform;
   using LookupTransformService = tf2_msgs::srv::LookupTransform;
@@ -80,9 +80,11 @@ public:
     const tf2_ros::Buffer & buffer,
     rclcpp::Node::SharedPtr node,
     const std::string & ns,
-    tf2::Duration check_period = tf2::durationFromSec(0.01))
+    tf2::Duration check_period = tf2::durationFromSec(0.01),
+    const rclcpp::NodeOptions & options)
   : buffer_(buffer),
-    logger_(node->get_logger())
+    logger_(node->get_logger(),
+    Node("buffer_server", options))
   {
     rcl_action_server_options_t action_server_ops = rcl_action_server_get_default_options();
     action_server_ops.result_timeout.nanoseconds = (rcl_duration_value_t)RCL_S_TO_NS(5);
@@ -106,6 +108,8 @@ public:
       node, node->get_clock(), check_period, std::bind(&BufferServer::checkTransforms, this));
     RCLCPP_DEBUG(logger_, "Buffer server started");
   }
+
+  explicit BufferServer(const rclcpp::NodeOptions & options);
 
 private:
   struct GoalInfo
