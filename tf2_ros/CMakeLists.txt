@@ -41,7 +41,8 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
   tf2::tf2
-  ${tf2_msgs_TARGETS})
+  ${tf2_msgs_TARGETS}
+  ${rclcpp_components_TARGETS})
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE "TF2_ROS_BUILDING_DLL")
 
@@ -58,11 +59,11 @@ target_link_libraries(buffer_server_node PUBLIC
   ${geometry_msgs_TARGETS}
   rclcpp::rclcpp
   ${tf2_msgs_TARGETS})
-
+  
 target_link_libraries(buffer_server_node PRIVATE
   rclcpp_components::component)
 
-rclcpp_components_register_nodes(buffer_server_node "tf2_ros::BufferServerNode")
+rclcpp_components_register_nodes(buffer_server_node "tf2_ros::BufferServer")
 
 # buffer_server executable
 add_executable(buffer_server src/buffer_server_main.cpp)
@@ -70,6 +71,7 @@ target_link_libraries(buffer_server
   ${PROJECT_NAME}
   buffer_server_node
   rclcpp::rclcpp
+  tf2::tf2
 )
 
 add_library(static_transform_broadcaster_node SHARED
