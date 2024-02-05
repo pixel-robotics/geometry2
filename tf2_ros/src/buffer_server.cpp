@@ -49,8 +49,13 @@
 namespace tf2_ros
 {
 
+// must initialize buffer_ in mem-list as buffer has a reference type
 BufferServer::BufferServer(const rclcpp::NodeOptions & options)
-: Node("buffer_server", options)
+: Node("buffer_server", options),
+  buffer_(&tf2_ros::Buffer(std::make_shared<rclcpp::Node>("tf_buffer"), tf2::Duration(120.0))),
+  logger_(this->get_logger())
+  {
+  }
 
 void BufferServer::checkTransforms()
 {
@@ -281,4 +286,4 @@ geometry_msgs::msg::TransformStamped BufferServer::lookupTransform(const std::sh
 }  // namespace tf2_ros
 
 #include "rclcpp_components/register_node_macro.hpp"
-RCLCPP_COMPONENTS_REGISTER_NODE(tf2_ros::BufferServerNode)
+RCLCPP_COMPONENTS_REGISTER_NODE(tf2_ros::BufferServer)

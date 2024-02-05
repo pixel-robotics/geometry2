@@ -81,9 +81,9 @@ public:
     rclcpp::Node::SharedPtr node,
     const std::string & ns,
     tf2::Duration check_period = tf2::durationFromSec(0.01))
-  : buffer_(buffer),
-    logger_(node->get_logger()),
-    Node("buffer_server", rclcpp::NodeOptions())
+  : Node("buffer_server", rclcpp::NodeOptions()),
+    buffer_(buffer),
+    logger_(node->get_logger())
   {
     rcl_action_server_options_t action_server_ops = rcl_action_server_get_default_options();
     action_server_ops.result_timeout.nanoseconds = (rcl_duration_value_t)RCL_S_TO_NS(5);
