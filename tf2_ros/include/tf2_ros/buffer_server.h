@@ -108,7 +108,7 @@ public:
     RCLCPP_DEBUG(logger_, "Buffer server started");
   }
 
-  explicit BufferServer(const rclcpp::NodeOptions & options);
+  explicit BufferServer(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
 
 private:
   struct GoalInfo
