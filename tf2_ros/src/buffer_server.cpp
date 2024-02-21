@@ -45,6 +45,7 @@
 #include <memory>
 #include <string>
 #include "rclcpp/rclcpp.hpp"
+#include "tf2_ros/transform_listener.h"
 
 namespace tf2_ros
 {
@@ -66,6 +67,10 @@ BufferServer::BufferServer(const rclcpp::NodeOptions & options)
       );
     cb_group_ = node->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
 
+    // not sure if this should be stored in some variable, sothat it doesn't go out of scope and is destroyed
+    // but it is not stored in the main file
+    tf2_ros::TransformListener listener(buffer_);
+
     service_server_ = node->create_service<LookupTransformService>("tf2_buffer_server",
      std::bind(&BufferServer::serviceCB, this, std::placeholders::_1, std::placeholders::_2),
     rclcpp::ServicesQoS(),
@@ -74,6 +79,7 @@ BufferServer::BufferServer(const rclcpp::NodeOptions & options)
     tf2::Duration check_period = tf2::durationFromSec(0.01);
     check_timer_ = rclcpp::create_timer(
       node, node->get_clock(), check_period, std::bind(&BufferServer::checkTransforms, this));
+
     RCLCPP_DEBUG(logger_, "Buffer server started");
   }
 
