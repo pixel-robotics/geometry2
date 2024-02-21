@@ -49,12 +49,11 @@
 namespace tf2_ros
 {
 
-// must initialize buffer_ in mem-list as buffer has a reference type
 BufferServer::BufferServer(const rclcpp::NodeOptions & options)
 : Node("buffer_server", options), buffer_(*std::make_shared<tf2_ros::Buffer>(this->get_clock(), tf2::durationFromSec(120.0))),
     logger_(this->get_logger())
   {
-    auto node= std::shared_ptr<rclcpp::Node>(this, [](rclcpp::Node *) {});
+    auto node = std::shared_ptr<rclcpp::Node>(this, [](rclcpp::Node *) {});
     rcl_action_server_options_t action_server_ops = rcl_action_server_get_default_options();
     action_server_ops.result_timeout.nanoseconds = (rcl_duration_value_t)RCL_S_TO_NS(5);
     server_ = rclcpp_action::create_server<LookupTransformAction>(

@@ -20,6 +20,7 @@ find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_msgs REQUIRED)
+find_package(backward_ros REQUIRED)
 
 # tf2_ros library
 add_library(${PROJECT_NAME} SHARED
@@ -69,10 +70,8 @@ rclcpp_components_register_nodes(buffer_server_node "tf2_ros::BufferServer")
 add_executable(buffer_server src/buffer_server_main.cpp)
 target_link_libraries(buffer_server
   ${PROJECT_NAME}
-  buffer_server_node
   rclcpp::rclcpp
-  tf2::tf2
-)
+  ${tf2_msgs_TARGETS})
 
 add_library(static_transform_broadcaster_node SHARED
   src/static_transform_broadcaster_node.cpp
