@@ -46,14 +46,9 @@
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<rclcpp::Node>("tf_buffer");
-  double buffer_size = node->declare_parameter("buffer_size", 120.0);
+   auto node = std::make_shared<tf2_ros::BufferServer>();
 
-  tf2_ros::Buffer buffer(node->get_clock(), tf2::durationFromSec(buffer_size));
-  tf2_ros::TransformListener listener(buffer);
-  tf2_ros::BufferServer buffer_server(buffer, node, "tf2_buffer_server");
-
-  rclcpp::executors::MultiThreadedExecutor executor;
+   rclcpp::executors::MultiThreadedExecutor executor;
   executor.add_node(node);
   executor.spin();
 

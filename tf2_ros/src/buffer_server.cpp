@@ -51,10 +51,14 @@ namespace tf2_ros
 {
 
 BufferServer::BufferServer(const rclcpp::NodeOptions & options)
-: Node("buffer_server", options), buffer_(*std::make_shared<tf2_ros::Buffer>(this->get_clock(), tf2::durationFromSec(120.0))),
-    logger_(this->get_logger())
+: rclcpp::Node("tf2_buffer_server", options)
   {
     auto node = std::shared_ptr<rclcpp::Node>(this, [](rclcpp::Node *) {});
+    double buffer_size = node->declare_parameter("buffer_size", 120.0);
+    buffer_ = std::make_unique<tf2_ros::Buffer>(node->get_clock(), tf2::durationFromSec(buffer_size));
+    listener_ = std::make_unique<tf2_ros::TransformListener>(*buffer_,  true);
+
+    logger_ = node->get_logger();
     rcl_action_server_options_t action_server_ops = rcl_action_server_get_default_options();
     action_server_ops.result_timeout.nanoseconds = (rcl_duration_value_t)RCL_S_TO_NS(5);
     server_ = rclcpp_action::create_server<LookupTransformAction>(
@@ -66,10 +70,6 @@ BufferServer::BufferServer(const rclcpp::NodeOptions & options)
       action_server_ops
       );
     cb_group_ = node->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
-
-    // not sure if this should be stored in some variable, sothat it doesn't go out of scope and is destroyed
-    // but it is not stored in the main file
-    tf2_ros::TransformListener listener(buffer_);
 
     service_server_ = node->create_service<LookupTransformService>("tf2_buffer_server",
      std::bind(&BufferServer::serviceCB, this, std::placeholders::_1, std::placeholders::_2),
@@ -269,11 +269,11 @@ bool BufferServer::canTransform(GoalHandle gh)
 
   // check whether we need to used the advanced or simple api
   if (!goal->advanced) {
-    return buffer_.canTransform(goal->target_frame, goal->source_frame, source_time_point, nullptr);
+    return buffer_->canTransform(goal->target_frame, goal->source_frame, source_time_point, nullptr);
   }
 
   tf2::TimePoint target_time_point = tf2_ros::fromMsg(goal->target_time);
-  return buffer_.canTransform(
+  return buffer_->canTransform(
     goal->target_frame, target_time_point,
     goal->source_frame, source_time_point, goal->fixed_frame, nullptr);
 }
@@ -284,12 +284,12 @@ geometry_msgs::msg::TransformStamped BufferServer::lookupTransform(GoalHandle gh
 
   // check whether we need to use the advanced or simple api
   if (!goal->advanced) {
-    return buffer_.lookupTransform(
+    return buffer_->lookupTransform(
       goal->target_frame, goal->source_frame,
       tf2_ros::fromMsg(goal->source_time));
   }
 
-  return buffer_.lookupTransform(
+  return buffer_->lookupTransform(
     goal->target_frame, tf2_ros::fromMsg(goal->target_time),
     goal->source_frame, tf2_ros::fromMsg(goal->source_time), goal->fixed_frame);
 }
@@ -298,12 +298,12 @@ geometry_msgs::msg::TransformStamped BufferServer::lookupTransform(const std::sh
 {
   // check whether we need to use the advanced or simple api
   if (!request->advanced) {
-    return buffer_.lookupTransform(
+    return buffer_->lookupTransform(
       request->target_frame, request->source_frame,
       tf2_ros::fromMsg(request->source_time), tf2_ros::fromMsg(request->timeout));
   }
 
-  return buffer_.lookupTransform(
+  return buffer_->lookupTransform(
     request->target_frame, tf2_ros::fromMsg(request->target_time),
     request->source_frame, tf2_ros::fromMsg(request->source_time), request->fixed_frame,
     tf2_ros::fromMsg(request->timeout));
