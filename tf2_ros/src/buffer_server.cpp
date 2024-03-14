@@ -52,36 +52,44 @@ namespace tf2_ros
 
 BufferServer::BufferServer(const rclcpp::NodeOptions & options)
 : rclcpp::Node("tf2_buffer_server", options)
-  {
-    auto node = std::shared_ptr<rclcpp::Node>(this, [](rclcpp::Node *) {});
-    double buffer_size = node->declare_parameter("buffer_size", 120.0);
-    buffer_ = std::make_unique<tf2_ros::Buffer>(node->get_clock(), tf2::durationFromSec(buffer_size));
-    listener_ = std::make_unique<tf2_ros::TransformListener>(*buffer_,  true);
+{
+  auto node = std::shared_ptr<rclcpp::Node>(this, [](rclcpp::Node *) {});
+  double buffer_size = node->declare_parameter("buffer_size", 120.0);
 
-    logger_ = node->get_logger();
-    rcl_action_server_options_t action_server_ops = rcl_action_server_get_default_options();
-    action_server_ops.result_timeout.nanoseconds = (rcl_duration_value_t)RCL_S_TO_NS(5);
-    server_ = rclcpp_action::create_server<LookupTransformAction>(
-      node,
-      "tf2_buffer_server",
-      std::bind(&BufferServer::goalCB, this, std::placeholders::_1, std::placeholders::_2),
-      std::bind(&BufferServer::cancelCB, this, std::placeholders::_1),
-      std::bind(&BufferServer::acceptedCB, this, std::placeholders::_1),
-      action_server_ops
-      );
-    cb_group_ = node->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+  buffer_ = std::make_unique<tf2_ros::Buffer>(node->get_clock(), tf2::durationFromSec(buffer_size));
+  listener_ = std::make_unique<tf2_ros::TransformListener>(*buffer_,  true);
+  logger_ = node->get_logger();
 
-    service_server_ = node->create_service<LookupTransformService>("tf2_buffer_server",
-     std::bind(&BufferServer::serviceCB, this, std::placeholders::_1, std::placeholders::_2),
-    rclcpp::ServicesQoS(),
-    cb_group_);
+  rcl_action_server_options_t action_server_ops = rcl_action_server_get_default_options();
+  action_server_ops.result_timeout.nanoseconds = (rcl_duration_value_t)RCL_S_TO_NS(5);
 
-    tf2::Duration check_period = tf2::durationFromSec(0.01);
-    check_timer_ = rclcpp::create_timer(
-      node, node->get_clock(), check_period, std::bind(&BufferServer::checkTransforms, this));
+  server_ = rclcpp_action::create_server<LookupTransformAction>(
+    node,
+    "tf2_buffer_server",
+    std::bind(&BufferServer::goalCB, this, std::placeholders::_1, std::placeholders::_2),
+    std::bind(&BufferServer::cancelCB, this, std::placeholders::_1),
+    std::bind(&BufferServer::acceptedCB, this, std::placeholders::_1),
+    action_server_ops
+    );
 
-    RCLCPP_DEBUG(logger_, "Buffer server started");
-  }
+  cb_group_ = node->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+  service_server_ = node->create_service<LookupTransformService>("tf2_buffer_server",
+   std::bind(&BufferServer::serviceCB, this, std::placeholders::_1, std::placeholders::_2),
+  rclcpp::ServicesQoS(),
+
+  cb_group_);
+  tf2::Duration check_period = tf2::durationFromSec(0.01);
+  check_timer_ = rclcpp::create_timer(
+    node, node->get_clock(), check_period, std::bind(&BufferServer::checkTransforms, this));
+  
+  
+  executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+  spin_executor_thread_ = std::thread([this]() {
+    executor_->spin();
+  });
+  
+  RCLCPP_DEBUG(logger_, "Buffer server started");
+}
 
 void BufferServer::checkTransforms()
 {

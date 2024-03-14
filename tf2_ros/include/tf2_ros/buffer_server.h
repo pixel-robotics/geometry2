@@ -122,6 +122,8 @@ protected:
   rclcpp::CallbackGroup::SharedPtr cb_group_;
   std::list<GoalInfo> active_goals_;
   std::mutex mutex_;
+  std::shared_ptr<rclcpp::Executor> executor_;
+  std::thread spin_executor_thread_;
   rclcpp::TimerBase::SharedPtr check_timer_;
 };
 
