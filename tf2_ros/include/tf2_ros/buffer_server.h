@@ -80,6 +80,7 @@ public:
    * \param check_period How often to check for changes to known transforms (via a timer event).
    */
   explicit BufferServer(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
+  ~BufferServer();
 
 protected:
   struct GoalInfo
@@ -113,6 +114,8 @@ protected:
 
   TF2_ROS_PUBLIC
   geometry_msgs::msg::TransformStamped lookupTransform(const std::shared_ptr<LookupTransformService::Request> request);
+  
+  void init_executor();
 
   rclcpp::Logger logger_ {rclcpp::get_logger("BufferServer")};
   std::unique_ptr<tf2_ros::Buffer> buffer_;
@@ -125,6 +128,7 @@ protected:
   std::shared_ptr<rclcpp::Executor> executor_;
   std::thread spin_executor_thread_;
   rclcpp::TimerBase::SharedPtr check_timer_;
+  rclcpp::TimerBase::SharedPtr init_timer_;
 };
 
 }  // namespace tf2_ros

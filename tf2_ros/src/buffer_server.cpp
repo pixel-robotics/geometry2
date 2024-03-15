@@ -47,6 +47,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "tf2_ros/transform_listener.h"
 
+using namespace std::chrono_literals;
 namespace tf2_ros
 {
 
@@ -86,11 +87,31 @@ BufferServer::BufferServer(const rclcpp::NodeOptions & options)
 
   executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
   executor_->add_node(node_intra);
+
+
+  init_timer_ = this->create_wall_timer(
+    50ms,
+    [this]() -> void {
+      init_timer_->cancel();
+      init_executor();
+    });
+
+  RCLCPP_INFO(logger_, "Buffer server started");
+}
+
+void BufferServer::init_executor()
+{
+  RCLCPP_INFO(logger_, "Executor initialized");
   spin_executor_thread_ = std::thread([this]() {
     executor_->spin();
   });
+}
 
-  RCLCPP_DEBUG(logger_, "Buffer server started");
+BufferServer::~BufferServer()
+{
+  RCLCPP_INFO(logger_, "Executor spin stop");
+  spin_executor_thread_.join();
+  RCLCPP_INFO(logger_, "Executor spin stopped");
 }
 
 void BufferServer::checkTransforms()
