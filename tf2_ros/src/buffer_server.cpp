@@ -82,7 +82,7 @@ BufferServer::BufferServer(const rclcpp::NodeOptions & options)
 
   tf2::Duration check_period = tf2::durationFromSec(0.01);
   check_timer_ = rclcpp::create_timer(
-    node_intra, node->get_clock(), check_period, std::bind(&BufferServer::checkTransforms, this));
+    node, node->get_clock(), check_period, std::bind(&BufferServer::checkTransforms, this));
 
   executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
   executor_->add_node(node_intra);
