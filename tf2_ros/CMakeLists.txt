@@ -20,7 +20,6 @@ find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_msgs REQUIRED)
-find_package(backward_ros REQUIRED)
 
 # tf2_ros library
 add_library(${PROJECT_NAME} SHARED
