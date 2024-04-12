@@ -44,9 +44,76 @@
 #include <list>
 #include <memory>
 #include <string>
+#include "rclcpp/rclcpp.hpp"
+#include "tf2_ros/transform_listener.h"
 
+using namespace std::chrono_literals;
 namespace tf2_ros
 {
+
+BufferServer::BufferServer(const rclcpp::NodeOptions & options)
+: rclcpp::Node("tf2_buffer_server", options)
+{
+  auto node = std::shared_ptr<rclcpp::Node>(this, [](rclcpp::Node *) {});
+  double buffer_size = node->declare_parameter("buffer_size", 120.0);
+
+  buffer_ = std::make_unique<tf2_ros::Buffer>(node->get_clock(), tf2::durationFromSec(buffer_size));
+  listener_ = std::make_unique<tf2_ros::TransformListener>(*buffer_, true);
+  logger_ = node->get_logger();
+
+  rcl_action_server_options_t action_server_ops = rcl_action_server_get_default_options();
+  action_server_ops.result_timeout.nanoseconds = (rcl_duration_value_t)RCL_S_TO_NS(5);
+
+  auto node_intra = std::make_shared<rclcpp::Node>("tf2_buffer_server_intra", options);
+  server_ = rclcpp_action::create_server<LookupTransformAction>(
+    node_intra,
+    "tf2_buffer_server",
+    std::bind(&BufferServer::goalCB, this, std::placeholders::_1, std::placeholders::_2),
+    std::bind(&BufferServer::cancelCB, this, std::placeholders::_1),
+    std::bind(&BufferServer::acceptedCB, this, std::placeholders::_1),
+    action_server_ops
+  );
+  cb_group_ = node_intra->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+  
+  service_server_ = node_intra->create_service<LookupTransformService>(
+    "tf2_buffer_server",
+    std::bind(&BufferServer::serviceCB, this, std::placeholders::_1, std::placeholders::_2),
+    rclcpp::ServicesQoS(),
+    cb_group_);
+
+  tf2::Duration check_period = tf2::durationFromSec(0.01);
+  check_timer_ = rclcpp::create_timer(
+    node, node->get_clock(), check_period, std::bind(&BufferServer::checkTransforms, this));
+
+  executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+  executor_->add_node(node_intra);
+
+
+  init_timer_ = this->create_wall_timer(
+    50ms,
+    [this]() -> void {
+      init_timer_->cancel();
+      init_executor();
+    });
+
+  RCLCPP_INFO(logger_, "Buffer server started");
+}
+
+void BufferServer::init_executor()
+{
+  RCLCPP_INFO(logger_, "Executor initialized");
+  spin_executor_thread_ = std::thread([this]() {
+    executor_->spin();
+  });
+}
+
+BufferServer::~BufferServer()
+{
+  RCLCPP_INFO(logger_, "Executor spin stop");
+  spin_executor_thread_.join();
+  RCLCPP_INFO(logger_, "Executor spin stopped");
+}
+
 void BufferServer::checkTransforms()
 {
   std::unique_lock<std::mutex> lock(mutex_);
@@ -233,11 +300,11 @@ bool BufferServer::canTransform(GoalHandle gh)
 
   // check whether we need to used the advanced or simple api
   if (!goal->advanced) {
-    return buffer_.canTransform(goal->target_frame, goal->source_frame, source_time_point, nullptr);
+    return buffer_->canTransform(goal->target_frame, goal->source_frame, source_time_point, nullptr);
   }
 
   tf2::TimePoint target_time_point = tf2_ros::fromMsg(goal->target_time);
-  return buffer_.canTransform(
+  return buffer_->canTransform(
     goal->target_frame, target_time_point,
     goal->source_frame, source_time_point, goal->fixed_frame, nullptr);
 }
@@ -248,12 +315,12 @@ geometry_msgs::msg::TransformStamped BufferServer::lookupTransform(GoalHandle gh
 
   // check whether we need to use the advanced or simple api
   if (!goal->advanced) {
-    return buffer_.lookupTransform(
+    return buffer_->lookupTransform(
       goal->target_frame, goal->source_frame,
       tf2_ros::fromMsg(goal->source_time));
   }
 
-  return buffer_.lookupTransform(
+  return buffer_->lookupTransform(
     goal->target_frame, tf2_ros::fromMsg(goal->target_time),
     goal->source_frame, tf2_ros::fromMsg(goal->source_time), goal->fixed_frame);
 }
@@ -262,15 +329,18 @@ geometry_msgs::msg::TransformStamped BufferServer::lookupTransform(const std::sh
 {
   // check whether we need to use the advanced or simple api
   if (!request->advanced) {
-    return buffer_.lookupTransform(
+    return buffer_->lookupTransform(
       request->target_frame, request->source_frame,
       tf2_ros::fromMsg(request->source_time), tf2_ros::fromMsg(request->timeout));
   }
 
-  return buffer_.lookupTransform(
+  return buffer_->lookupTransform(
     request->target_frame, tf2_ros::fromMsg(request->target_time),
     request->source_frame, tf2_ros::fromMsg(request->source_time), request->fixed_frame,
     tf2_ros::fromMsg(request->timeout));
 }
 
 }  // namespace tf2_ros
+
+#include "rclcpp_components/register_node_macro.hpp"
+RCLCPP_COMPONENTS_REGISTER_NODE(tf2_ros::BufferServer)

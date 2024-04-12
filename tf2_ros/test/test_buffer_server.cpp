@@ -120,9 +120,7 @@ protected:
 
   void SetUp()
   {
-    node_ = std::make_shared<rclcpp::Node>("tf_buffer");
-    buffer_ = std::make_shared<tf2_ros::Buffer>(node_->get_clock());
-    server_ = std::make_unique<tf2_ros::BufferServer>(*buffer_, node_, ACTION_NAME);
+    node_ = std::make_shared<tf2_ros::BufferServer>();
     mock_client_ = std::make_shared<MockBufferClient>();
 
     executor_.add_node(node_);
@@ -135,7 +133,6 @@ protected:
   void TearDown()
   {
     mock_client_.reset();
-    server_.reset();
     buffer_.reset();
     node_.reset();
   }
@@ -152,9 +149,8 @@ protected:
     buffer_->setTransform(transform_stamped, "mock_tf_authority");
   }
 
-  rclcpp::Node::SharedPtr node_;
   std::shared_ptr<tf2_ros::Buffer> buffer_;
-  std::unique_ptr<tf2_ros::BufferServer> server_;
+  std::shared_ptr<tf2_ros::BufferServer> node_;
   std::shared_ptr<MockBufferClient> mock_client_;
   rclcpp::executors::SingleThreadedExecutor executor_;
 };
