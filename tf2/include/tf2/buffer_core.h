@@ -348,6 +348,7 @@ private:
   std::mutex transformable_requests_mutex_;
   uint64_t transformable_requests_counter_;
 
+  std::chrono::time_point<std::chrono::steady_clock> node_start_time_;
   bool using_dedicated_thread_;
 
   /************************* Internal Functions ****************************/

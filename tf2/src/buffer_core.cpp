@@ -115,8 +115,14 @@ CompactFrameID BufferCore::validateFrameId(
 
   CompactFrameID id = lookupFrameNumber(frame_id);
   if (id == 0) {
-    fillOrWarnMessageForInvalidFrame(
-      function_name_arg, frame_id, error_msg, "frame does not exist");
+      auto current_time = std::chrono::steady_clock::now();
+      auto uptime = std::chrono::duration_cast<std::chrono::seconds>(current_time - node_start_time_).count();
+
+      // Only log error if uptime is greater than 60 seconds (1 minute)
+      if (uptime > 60) {
+        fillOrWarnMessageForInvalidFrame(
+          function_name_arg, frame_id, error_msg, "frame does not exist");
+      }
   }
   return id;
 }
@@ -156,6 +162,7 @@ BufferCore::BufferCore(tf2::Duration cache_time)
   frameIDs_["NO_PARENT"] = 0;
   frames_.push_back(TimeCacheInterfacePtr());
   frameIDs_reverse_.push_back("NO_PARENT");
+  node_start_time_ = std::chrono::steady_clock::now();
 }
 
 BufferCore::~BufferCore() {}
